@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Penta 2026 環島自駕行控中心</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Plotly.js -->
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
+
+    <!-- Config & Styles -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        stone: {
+                            50: '#fafaf9',
+                            100: '#f5f5f4',
+                            200: '#e7e5e4',
+                            800: '#292524',
+                            900: '#1c1917',
+                        },
+                        earth: {
+                            light: '#d6d3d1',
+                            accent: '#ea580c',
+                            soft: '#a8a29e',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Noto Sans TC', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            background-color: #fafaf9;
+            color: #292524;
+        }
+        
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px;
+            max-height: 400px;
+        }
+        
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 350px;
+            }
+        }
+
+        .timeline-line {
+            position: absolute;
+            left: 1.25rem;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background-color: #e7e5e4;
+            z-index: 0;
+        }
+
+        .card-hover:hover {
+            transform: translateY(-2px);
+            transition: all 0.3s ease;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+
+        .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+        }
+        .scrollbar-hide {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fadeIn {
+            animation: fadeIn 0.5s ease-out forwards;
+        }
+    </style>
+    
+    <!-- Chosen Palette: Warm Neutrals (Stone/Earth) with Burnt Orange Accent -->
+    <!-- Application Structure Plan: 
+         1. Hero Section: Trip Stats & Plotly Route Map.
+         2. Daily Command Center: Tabbed interface for D1-D8 with dynamic timeline and balance charts.
+         3. Analysis Section: Driving Stress vs. Comfort analytics.
+         4. Logistics Hub: Filterable food list and safety guide.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+
+</head>
+<body class="font-sans antialiased min-h-screen flex flex-col">
+
+    <!-- Header -->
+    <header class="bg-white border-b border-stone-200 sticky top-0 z-50 shadow-sm backdrop-blur-md bg-opacity-90">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-2 cursor-pointer" onclick="window.scrollTo({top: 0, behavior: 'smooth'})">
+                <span class="text-2xl">🚗</span>
+                <h1 class="text-xl font-bold text-stone-800 tracking-wide">Penta 2026 行控中心</h1>
+            </div>
+            <div class="text-sm font-medium text-stone-500 hidden sm:block bg-stone-100 px-3 py-1 rounded-full">
+                2026/02/07 - 02/14 (8天7夜)
+            </div>
+            <button onclick="scrollToSection('daily-section')" class="bg-earth-accent text-white px-4 py-2 rounded-full text-sm font-bold hover:bg-orange-700 transition shadow-md">
+                今日行程
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-grow w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-12">
+
+        <!-- Section 1: Trip Overview & Map -->
+        <section class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div class="lg:col-span-1 space-y-4">
+                <h2 class="text-3xl font-bold text-stone-900">旅程總覽</h2>
+                <p class="text-stone-600 leading-relaxed text-justify">
+                    歡迎來到 Penta 2026 自駕環島行控中心。這是一趟為期 8 天的質感旅程，從台北出發，順時針繞行台灣。
+                    我們精選了<span class="font-bold text-earth-accent">極致湯宿</span>、<span class="font-bold text-earth-accent">在地美食</span>與<span class="font-bold text-日系質感">。
+                    此儀表板整合了天氣預報與路況提醒，助您輕鬆導航。
+                </p>
+                <div class="bg-white p-6 rounded-xl border border-stone-200 shadow-sm">
+                    <h3 class="text-xs uppercase tracking-wider text-stone-400 font-bold mb-4">關鍵數據</h3>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="text-center p-3 bg-stone-50 rounded-lg">
+                            <div class="text-2xl font-bold text-stone-800">8</div>
+                            <div class="text-xs text-stone-500">天數</div>
+                        </div>
+                        <div class="text-center p-3 bg-stone-50 rounded-lg">
+                            <div class="text-2xl font-bold text-stone-800">1000+</div>
+                            <div class="text-xs text-stone-500">預估公里</div>
+                        </div>
+                        <div class="text-center p-3 bg-stone-50 rounded-lg">
+                            <div class="text-2xl font-bold text-stone-800">7</div>
+                            <div class="text-xs text-stone-500">跨越縣市</div>
+                        </div>
+                        <div class="text-center p-3 bg-stone-50 rounded-lg">
+                            <div class="text-2xl font-bold text-stone-800">Feb 7</div>
+                            <div class="text-xs text-stone-500">啟程日</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="lg:col-span-2 bg-white rounded-xl border border-stone-200 shadow-sm p-4 flex flex-col relative overflow-hidden">
+                <div class="flex justify-between items-center mb-2 z-10 relative">
+                    <h3 class="font-bold text-stone-700 flex items-center"><span class="mr-2">🗺️</span> 環島路徑示意圖</h3>
+                    <span class="text-xs text-stone-400 bg-stone-50 px-2 py-1 rounded">互動式地圖畫布</span>
+                </div>
+                <div id="routeMap" class="w-full flex-grow h-[300px] md:h-[400px]"></div>
+            </div>
+        </section>
+
+        <!-- Section 2: Daily Command Center -->
+        <section id="daily-section" class="scroll-mt-24">
+            <div class="mb-6 border-l-4 border-earth-accent pl-4">
+                <h2 class="text-2xl font-bold text-stone-900">📅 每日行控中心</h2>
+                <p class="text-stone-500 mt-1">選擇下方日期切換行程。右側圖表顯示該日行程屬性比重。</p>
+            </div>
+
+            <!-- Day Tabs -->
+            <div class="flex overflow-x-auto space-x-2 pb-4 mb-4 scrollbar-hide" id="dayTabs"></div>
+
+            <!-- Day Content -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <!-- Left: Timeline -->
+                <div class="lg:col-span-2 bg-white rounded-xl border border-stone-200 shadow-sm p-6 relative min-h-[500px]">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 border-b border-stone-100 pb-4">
+                        <div>
+                            <h3 id="dayTitle" class="text-xl font-bold text-stone-800">Day 1</h3>
+                            <div id="dayWeather" class="text-sm mt-1 font-medium inline-block px-2 py-1 rounded">
+                                🌦️ 加載天氣中...
+                            </div>
+                        </div>
+                        <div class="mt-2 sm:mt-0 text-right">
+                             <p id="dayDate" class="text-sm font-bold text-stone-500">2026/02/07</p>
+                             <p id="dayWeekday" class="text-xs text-stone-400">星期六</p>
+                        </div>
+                    </div>
+
+                    <div id="dayWarning" class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6 rounded-r hidden">
+                         <p class="text-sm text-yellow-700 font-bold">⚠️ 注意事項</p>
+                         <p id="dayWarningText" class="text-sm text-yellow-600 mt-1"></p>
+                    </div>
+                    
+                    <div class="relative pl-4" id="timelineContainer">
+                        <div class="absolute left-[29px] top-4 bottom-4 w-0.5 bg-stone-200"></div>
+                    </div>
+                </div>
+
+                <!-- Right: Stats -->
+                <div class="lg:col-span-1 space-y-6">
+                    <div class="bg-white rounded-xl border border-stone-200 shadow-sm p-6">
+                        <h4 class="text-sm font-bold text-stone-600 mb-4 text-center">今日節奏分佈</h4>
+                        <div class="chart-container">
+                            <canvas id="dayBalanceChart"></canvas>
+                        </div>
+                        <p class="text-xs text-center text-stone-400 mt-2">基於活動類型預估分配</p>
+                    </div>
+
+                    <div id="dayHotelCard" class="bg-stone-800 text-white rounded-xl p-6 shadow-lg">
+                        <div class="flex items-start justify-between">
+                            <div>
+                                <span class="text-xs text-earth-accent font-bold uppercase tracking-wider">今晚下榻地點</span>
+                                <h4 class="text-xl font-bold mt-1" id="hotelName">Loading...</h4>
+                            </div>
+                            <span class="text-2xl bg-stone-700 rounded-full w-10 h-10 flex items-center justify-center">🏨</span>
+                        </div>
+                        <p class="text-stone-300 text-sm mt-3 border-t border-stone-600 pt-3" id="hotelAddress"></p>
+                        <div class="mt-2 flex justify-between items-center">
+                             <span class="text-xs text-stone-400 bg-stone-900 px-2 py-1 rounded" id="hotelNote"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 3: Analytics -->
+        <section>
+            <div class="mb-6">
+                <h2 class="text-2xl font-bold text-stone-900">📊 全程駕駛強度分析</h2>
+                <p class="text-stone-500 mt-1">這能幫助您預估精神耗損，Day 1 與 Day 2 是最具挑戰性的路段。</p>
+            </div>
+            <div class="bg-white rounded-xl border border-stone-200 shadow-sm p-6">
+                <div class="chart-container w-full h-64">
+                    <canvas id="drivingStressChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 4: Food & Tips -->
+        <section class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div>
+                <h2 class="text-2xl font-bold text-stone-900 mb-6 flex items-center">
+                    <span class="bg-orange-100 text-orange-600 p-2 rounded-lg mr-3">🍜</span> 
+                    環島美食圖鑑
+                </h2>
+                <div class="bg-white rounded-xl border border-stone-200 shadow-sm overflow-hidden h-[450px] flex flex-col">
+                    <div class="p-4 bg-stone-50 border-b border-stone-200 flex space-x-2 overflow-x-auto scrollbar-hide">
+                        <button onclick="filterFood('all')" class="food-filter-btn active bg-stone-800 text-white px-3 py-1 rounded-full text-xs font-medium transition">全部</button>
+                        <button onclick="filterFood('花蓮')" class="food-filter-btn bg-white text-stone-600 border border-stone-200 px-3 py-1 rounded-full text-xs font-medium transition hover:bg-stone-100">花蓮</button>
+                        <button onclick="filterFood('台東')" class="food-filter-btn bg-white text-stone-600 border border-stone-200 px-3 py-1 rounded-full text-xs font-medium transition hover:bg-stone-100">台東</button>
+                        <button onclick="filterFood('高雄')" class="food-filter-btn bg-white text-stone-600 border border-stone-200 px-3 py-1 rounded-full text-xs font-medium transition hover:bg-stone-100">高雄</button>
+                        <button onclick="filterFood('台南')" class="food-filter-btn bg-white text-stone-600 border border-stone-200 px-3 py-1 rounded-full text-xs font-medium transition hover:bg-stone-100">台南</button>
+                        <button onclick="filterFood('嘉義')" class="food-filter-btn bg-white text-stone-600 border border-stone-200 px-3 py-1 rounded-full text-xs font-medium transition hover:bg-stone-100">嘉義</button>
+                    </div>
+                    <div class="flex-grow overflow-y-auto divide-y divide-stone-100 p-2" id="foodListContainer"></div>
+                </div>
+            </div>
+
+            <div>
+                <h2 class="text-2xl font-bold text-stone-900 mb-6 flex items-center">
+                    <span class="bg-red-100 text-red-600 p-2 rounded-lg mr-3">🛡️</span> 
+                    自駕行前守則
+                </h2>
+                <div class="space-y-4">
+                    <div class="bg-white p-5 rounded-xl border border-stone-200 shadow-sm card-hover flex items-start">
+                        <span class="text-2xl mr-4">🌡️</span>
+                        <div>
+                            <h3 class="font-bold text-stone-800">應對極端溫差</h3>
+                            <p class="text-stone-600 text-sm mt-1">2月環島北冷南熱。北部體感 14°C，南部陽光下可達 26°C。請務必攜帶洋蔥式衣物。</p>
+                        </div>
+                    </div>
+                    <div class="bg-white p-5 rounded-xl border border-stone-200 shadow-sm card-hover flex items-start">
+                        <span class="text-2xl mr-4">⛽</span>
+                        <div>
+                            <h3 class="font-bold text-stone-800">東部補給站</h3>
+                            <p class="text-stone-600 text-sm mt-1">蘇花改進入花蓮前，「台泥 DAKA」是最好的歇腳處，務必在此檢查油量與提神。</p>
+                        </div>
+                    </div>
+                    <div class="bg-white p-5 rounded-xl border border-stone-200 shadow-sm card-hover flex items-start">
+                        <span class="text-2xl mr-4">🅿️</span>
+                        <div>
+                            <h3 class="font-bold text-stone-800">府城停車哲學</h3>
+                            <p class="text-stone-600 text-sm mt-1">週末台南市區一位難求。Day 5-6 抵達台南後，建議將車停妥，改搭乘計程車或步行。</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="bg-stone-900 text-stone-400 py-12 mt-12 text-center">
+        <h2 class="text-2xl font-bold text-stone-200 mb-4">Penta 2026</h2>
+        <p class="text-sm">自駕環島 • 質感生活 • 探索台灣</p>
+    </footer>
+
+    <script>
+        const tripData = [
+            {
+                day: 1, date: "2026/02/07", weekday: "星期六", title: "台北 ➔ 花蓮市", weather: "🌧️ 台北宜蘭短暫雨 (14-17°C)",
+                focus: "蘇花改中途建議休息。東北風可能導致路面濕滑，請保持安全車距。",
+                hotel: { name: "東岸行旅", address: "花蓮市建國路128號", note: "方便前往東大門夜市" },
+                warning: "東北風強勁，進入蘇花長隧道前請留意車況。",
+                stats: { drive: 45, explore: 35, food: 20 },
+                timeline: [
+                    { time: "08:00", icon: "🏠", title: "台北出發", desc: "士林區中正路715號", type: "drive" },
+                    { time: "10:30", icon: "☕", title: "台泥 DAKA", desc: "蘇花改必停點，星巴克休息", type: "explore" },
+                    { time: "11:30", icon: "☂️", title: "粉鳥林的小雨傘", desc: "午餐 & 秘境海灘散步", type: "food" },
+                    { time: "14:30", icon: "🌊", title: "七星潭", desc: "疊石頭、聽海聲", type: "explore" },
+                    { time: "16:00", icon: "🎨", title: "花蓮文創園區", desc: "在地文青小店探索", type: "explore" },
+                    { time: "18:00", icon: "🍛", title: "芝麻開門", desc: "哈林推薦日式定食", type: "food" },
+                    { time: "20:00", icon: "🍢", title: "東大門夜市", desc: "宵夜：林記燒番麥、烤肉串", type: "food" },
+                ]
+            },
+            {
+                day: 2, date: "2026/02/08", weekday: "星期日", title: "花蓮海線 ➔ 瑞穗", weather: "☁️ 多雲 (16-20°C)，早晚偏冷",
+                focus: "山海切換日。瑞港公路 (花64) 蜿蜒，雨後注意落石與路況。",
+                hotel: { name: "元湯溫泉居", address: "花蓮縣瑞穗鄉瑞北1號", note: "質感溫泉放鬆" },
+                warning: "瑞港公路蜿蜒，行車需專注。",
+                stats: { drive: 30, explore: 50, food: 20 },
+                timeline: [
+                    { time: "10:00", icon: "☕", title: "嘎嘎烏賴賴", desc: "海邊咖啡，感受阿美族部落風情", type: "explore" },
+                    { time: "12:00", icon: "🪨", title: "石梯坪", desc: "世界級地質景觀，必拍白色階梯", type: "explore" },
+                    { time: "13:30", icon: "🛣️", title: "瑞港公路移動", desc: "前往縱谷區 (約50分鐘)", type: "drive" },
+                    { time: "14:30", icon: "🐄", title: "瑞穗牧場", desc: "喝純淨鮮乳、看乳牛", type: "explore" },
+                    { time: "16:30", icon: "♨️", title: "進房泡湯", desc: "享受元湯溫泉極致放鬆", type: "relax" },
+                    { time: "18:30", icon: "🥢", title: "在地風味餐", desc: "綠茶肉圓 或 老家後山菜", type: "food" },
+                ]
+            },
+            {
+                day: 3, date: "2026/02/09", weekday: "星期一", title: "縱谷南下 ➔ 台東市", weather: "☀️ 轉晴 (18-22°C)",
+                focus: "池上稻浪區風大。大池豆皮店非常熱門，建議作為首站。",
+                hotel: { name: "湯園民宿", address: "台東市中興路一段225號", note: "隱密寧靜環境" },
+                warning: "豆皮店中午前易售罄。",
+                stats: { drive: 20, explore: 60, food: 20 },
+                timeline: [
+                    { time: "09:30", icon: "🥘", title: "大池豆皮店", desc: "古法豆皮製作，現吃現炸", type: "food" },
+                    { time: "11:00", icon: "🚲", title: "伯朗大道", desc: "租電動車，看金城武樹", type: "explore" },
+                    { time: "13:00", icon: "🍱", title: "池上便當", desc: "悟饕飯包故事館文化體驗", type: "food" },
+                    { time: "15:00", icon: "🌄", title: "鹿野高台", desc: "飽覽花東縱谷全景", type: "explore" },
+                    { time: "16:30", icon: "🌳", title: "森林公園", desc: "台東之肺，琵琶湖畔散步", type: "explore" },
+                    { time: "18:00", icon: "🏮", title: "鐵花村", desc: "聽歌、逛手創市集", type: "explore" },
+                    { time: "19:30", icon: "🍽️", title: "聚餐時間", desc: "與端容餐敘 (原始部落美食)", type: "food" },
+                ]
+            },
+            {
+                day: 4, date: "2026/02/10", weekday: "星期二", title: "南迴公路 ➔ 高雄", weather: "☀️ 晴朗 (21-25°C)",
+                focus: "南迴改路況佳。傍晚抵達高雄燈會，港口風勢較大。",
+                hotel: { name: "喜迎旅店", address: "高雄市前金區", note: "六合夜市旁，車位優質" },
+                warning: "多良車站周邊嚴禁臨停，請入收費停車場。",
+                stats: { drive: 35, explore: 45, food: 20 },
+                timeline: [
+                    { time: "10:00", icon: "🚂", title: "多良車站", desc: "全台最美車站看海火車", type: "explore" },
+                    { time: "12:00", icon: "🐷", title: "萬巒豬腳", desc: "海鴻飯店創始店補體力", type: "food" },
+                    { time: "14:30", icon: "🏮", title: "屏東燈會", desc: "勝利星村日式老屋點燈", type: "explore" },
+                    { time: "18:00", icon: "🚗", title: "進駐高雄", desc: "港都交通流量大請留意", type: "drive" },
+                    { time: "19:00", icon: "🌉", title: "大港橋", desc: "全台首座旋轉橋看夜景", type: "explore" },
+                ]
+            },
+            {
+                day: 5, date: "2026/02/11", weekday: "星期三", title: "高雄 ➔ 台南", weather: "☀️ 陽光普照 (22-26°C)",
+                focus: "賽車樂園需體力。深夜移動至台南時，國道注意疲勞駕駛。",
+                hotel: { name: "台南友愛街旅館", address: "台南美術館旁", note: "文青首選，深夜入住" },
+                warning: "SKM Park 賽車具一定體力消耗。",
+                stats: { drive: 15, explore: 45, food: 40 },
+                timeline: [
+                    { time: "10:00", icon: "🛍️", title: "SKM Park", desc: "早起逛羚鹿 Outlet 品牌", type: "explore" },
+                    { time: "12:00", icon: "🤝", title: "Alvin 聚餐", desc: "美食與閒聊時光", type: "food" },
+                    { time: "14:30", icon: "🏎️", title: "賽道體驗", desc: "專業鈴鹿賽道卡丁車奔馳", type: "explore" },
+                    { time: "18:00", icon: "🍲", title: "高雄晚餐", desc: "品嚐在地特色熱炒", type: "food" },
+                    { time: "19:30", icon: "🏮", title: "高雄燈會", desc: "二訪港區藝術燈光展示", type: "explore" },
+                    { time: "21:30", icon: "🚗", title: "移動至台南", desc: "深夜國道巡航", type: "drive" },
+                    { time: "22:30", icon: "🛏️", title: "深夜 Check-in", desc: "友愛街質感旅館入睡", type: "relax" },
+                ]
+            },
+            {
+                day: 6, date: "2026/02/12", weekday: "星期四", title: "台南深度探索", weather: "⛅ 舒適多雲 (20-25°C)",
+                focus: "仁德區兩大景點。奇美藝術豐富，需預留較長停留時間。",
+                hotel: { name: "續住台南", address: "原旅館", note: "深度探索府城" },
+                warning: "美術館內禁止飲食。",
+                stats: { drive: 10, explore: 50, food: 40 },
+                timeline: [
+                    { time: "09:00", icon: "🥣", title: "府城鹹粥", desc: "台南人的道地早餐體現", type: "food" },
+                    { time: "10:30", icon: "🏛️", title: "奇美博物館", desc: "西洋藝術與壯觀館藏", type: "explore" },
+                    { time: "13:00", icon: "🥩", title: "阿裕牛肉鍋", desc: "崑崙店，台南溫體牛首選", type: "food" },
+                    { time: "14:30", icon: "🥁", title: "十鼓文創", desc: "老糖廠與震撼擊鼓表演", type: "explore" },
+                    { time: "17:30", icon: "☕", title: "咖啡酌客", desc: "職人手沖精品咖啡時光", type: "relax" },
+                    { time: "19:00", icon: "🍲", title: "仁峰沙茶爐", desc: "在地傳統沙茶火鍋晚餐", type: "food" },
+                ]
+            },
+            {
+                day: 7, date: "2026/02/13", weekday: "星期五", title: "高雄郊外一日遊", weather: "☀️ 晴朗 (21-26°C)",
+                focus: "深入惡地地質。月世界步道遮蔽物少，務必補水。",
+                hotel: { name: "續住台南", address: "原旅館", note: "準備旅程收尾" },
+                warning: "步道體感溫度較高。",
+                stats: { drive: 30, explore: 50, food: 20 },
+                timeline: [
+                    { time: "09:30", icon: "🚗", title: "出發田寮", desc: "準備探訪惡地地形", type: "drive" },
+                    { time: "10:20", icon: "🌑", title: "月世界", desc: "月球表面般奇幻荒涼地景", type: "explore" },
+                    { time: "12:30", icon: "🍌", title: "旗山老街", desc: "香蕉蛋糕與老街建築探索", type: "food" },
+                    { time: "14:30", icon: "☂️", title: "美濃文化", desc: "民俗村畫紙傘、湖畔漫步", type: "explore" },
+                    { time: "17:00", icon: "🚗", title: "返回台南", desc: "享受最後府城之夜", type: "drive" },
+                    { time: "19:00", icon: "🍝", title: "9969洋食屋", desc: "隱藏版職人洋食晚餐", type: "food" },
+                ]
+            },
+            {
+                day: 8, date: "2026/02/14", weekday: "星期六", title: "回程：嘉義中繼", weather: "⛅ 舒適多雲 (18-24°C)",
+                focus: "西洋情人節回程。檜意森活村氣氛佳但人潮多，建議早到。",
+                hotel: { name: "回到台中", address: "溫馨家園", note: "圓滿結束" },
+                warning: "假日嘉義市區車多，留意停車位置。",
+                stats: { drive: 40, explore: 30, food: 30 },
+                timeline: [
+                    { time: "10:00", icon: "👋", title: "台南告別", desc: "啟程北上嘉義", type: "drive" },
+                    { time: "11:45", icon: "🍚", title: "民主雞肉飯", desc: "嘉義人激推火雞肉飯", type: "food" },
+                    { time: "13:00", icon: "🌲", title: "檜意森活村", desc: "日式宿舍群美學漫步", type: "explore" },
+                    { time: "15:00", icon: "🍰", title: "霜空珈琲", desc: "在日系老屋品嚐最後甜點", type: "relax" },
+                    { time: "17:00", icon: "🚗", title: "啟程返家", desc: "台中，我們回來了", type: "drive" },
+                ]
+            }
+        ];
+
+        const foodItems = [
+            { city: "花蓮", name: "芝麻開門", type: "日式", note: "上海支店" },
+            { city: "花蓮", name: "東大門夜市", type: "夜市", note: "必吃燒番麥" },
+            { city: "花蓮", name: "嘎嘎烏賴賴", type: "咖啡", note: "部落風情" },
+            { city: "台東", name: "大池豆皮店", type: "早餐", note: "池上必訪" },
+            { city: "台東", name: "原始部落", type: "原民", note: "聚餐首選" },
+            { city: "高雄", name: "海鴻飯店", type: "台式", note: "萬巒豬腳" },
+            { city: "台南", name: "阿裕牛肉鍋", type: "火鍋", note: "崑崙店" },
+            { city: "台南", name: "咖啡酌客", type: "咖啡", note: "精品手沖" },
+            { city: "台南", name: "9969洋食屋", type: "日式", note: "復古職人" },
+            { city: "嘉義", name: "民主集成", type: "小吃", note: "雞肉片飯" },
+            { city: "嘉義", name: "霜空珈琲", type: "咖啡", note: "日系絕美" },
+        ];
+
+        let balanceChart = null;
+
+        function initRouteMap() {
+            const places = [
+                { name: "台北", x: 2, y: 10, c: '#ef4444' },
+                { name: "宜蘭", x: 2.8, y: 9, c: '#f97316' },
+                { name: "花蓮", x: 2.8, y: 6.5, c: '#f97316' },
+                { name: "瑞穗", x: 2.5, y: 5, c: '#eab308' },
+                { name: "台東", x: 2, y: 3, c: '#84cc16' },
+                { name: "屏東", x: 1.5, y: 1.5, c: '#06b6d4' },
+                { name: "高雄", x: 1, y: 2, c: '#06b6d4' },
+                { name: "台南", x: 0.8, y: 3.5, c: '#8b5cf6' },
+                { name: "嘉義", x: 1, y: 5.5, c: '#d946ef' },
+                { name: "台中", x: 1.5, y: 7.5, c: '#f43f5e' },
+                { name: "台北", x: 2, y: 10, c: '#ef4444' }
+            ];
+
+            Plotly.newPlot('routeMap', [{
+                x: places.map(p => p.x), y: places.map(p => p.y), text: places.map(p => p.name),
+                mode: 'lines+markers+text', type: 'scatter', textposition: 'top center',
+                line: { shape: 'spline', color: '#a8a29e', width: 3, dash: 'dot' },
+                marker: { size: 12, color: places.map(p => p.c), line: { color: 'white', width: 2 } }
+            }], {
+                showlegend: false, margin: { t: 10, b: 10, l: 10, r: 10 },
+                xaxis: { showgrid: false, zeroline: false, showticklabels: false, range: [0, 4] },
+                yaxis: { showgrid: false, zeroline: false, showticklabels: false, range: [0, 11] },
+                paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)'
+            }, { displayModeBar: false, responsive: true });
+        }
+
+        function renderDayTabs() {
+            const container = document.getElementById('dayTabs');
+            tripData.forEach((day, i) => {
+                const btn = document.createElement('button');
+                btn.className = `flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition whitespace-nowrap border ${i === 0 ? 'bg-earth-accent text-white border-earth-accent shadow-md' : 'bg-white text-stone-500 border-stone-200 hover:bg-stone-50'}`;
+                btn.innerText = `Day ${day.day}`;
+                btn.onclick = () => loadDay(i);
+                btn.id = `tab-${i}`;
+                container.appendChild(btn);
+            });
+        }
+
+        function loadDay(idx) {
+            const data = tripData[idx];
+            document.querySelectorAll('#dayTabs button').forEach((b, i) => {
+                if(i === idx) b.className = 'flex-shrink-0 px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap border bg-earth-accent text-white border-earth-accent shadow-md transform scale-105 transition';
+                else b.className = 'flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap border bg-white text-stone-500 border-stone-200 hover:bg-stone-50 transition';
+            });
+
+            document.getElementById('dayTitle').innerText = `Day ${data.day}: ${data.title}`;
+            document.getElementById('dayDate').innerText = data.date;
+            document.getElementById('dayWeekday').innerText = data.weekday;
+            
+            const w = document.getElementById('dayWeather');
+            w.innerText = data.weather;
+            w.className = `text-sm mt-1 font-medium inline-block px-2 py-1 rounded ${data.weather.includes('雨') ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'}`;
+
+            const warn = document.getElementById('dayWarning');
+            if(data.warning) { warn.classList.remove('hidden'); document.getElementById('dayWarningText').innerText = data.warning; }
+            else warn.classList.add('hidden');
+
+            document.getElementById('hotelName').innerText = data.hotel.name;
+            document.getElementById('hotelAddress').innerText = data.hotel.address;
+            document.getElementById('hotelNote').innerText = data.hotel.note;
+
+            const tl = document.getElementById('timelineContainer');
+            while(tl.children.length > 1) tl.removeChild(tl.lastElementChild);
+            data.timeline.forEach((item, i) => {
+                const d = document.createElement('div');
+                d.className = "relative mb-8 pl-10 group animate-fadeIn";
+                d.style.animationDelay = `${i * 0.1}s`;
+                d.innerHTML = `
+                    <div class="absolute left-[20px] top-1 w-5 h-5 bg-white border-2 border-stone-300 rounded-full flex items-center justify-center text-[8px] z-10 group-hover:border-earth-accent transition-colors shadow-sm">●</div>
+                    <div class="flex flex-col sm:flex-row sm:items-baseline">
+                        <span class="font-mono text-sm font-bold text-earth-accent mr-3 w-14 flex-shrink-0">${item.time}</span>
+                        <div class="flex-1">
+                            <h4 class="text-md font-bold text-stone-800 flex items-center"><span class="mr-2">${item.icon}</span> ${item.title}</h4>
+                            <p class="text-sm text-stone-500 mt-1">${item.desc}</p>
+                            <span class="text-[10px] text-stone-400 border border-stone-200 px-1.5 rounded mt-1 inline-block uppercase">${item.type}</span>
+                        </div>
+                    </div>
+                `;
+                tl.appendChild(d);
+            });
+            updateBalanceChart(data.stats);
+        }
+
+        function updateBalanceChart(s) {
+            const ctx = document.getElementById('dayBalanceChart').getContext('2d');
+            if(balanceChart) balanceChart.destroy();
+            balanceChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: { labels: ['駕駛', '探索', '餐飲'], datasets: [{ data: [s.drive, s.explore, s.food], backgroundColor: ['#a8a29e', '#ea580c', '#d6d3d1'], borderWidth: 0 }] },
+                options: { responsive: true, maintainAspectRatio: false, cutout: '75%', plugins: { legend: { position: 'bottom' } } }
+            });
+        }
+
+        function initDrivingStressChart() {
+            new Chart(document.getElementById('drivingStressChart').getContext('2d'), {
+                type: 'line',
+                data: { labels: ['D1', 'D2', 'D3', 'D4', 'D5', 'D6', 'D7', 'D8'], datasets: [{ label: '駕駛強度', data: [8, 9, 4, 6, 7, 3, 6, 5], borderColor: '#ea580c', backgroundColor: 'rgba(234, 88, 12, 0.05)', fill: true, tension: 0.4 }] },
+                options: { responsive: true, maintainAspectRatio: false, scales: { y: { display: false } } }
+            });
+        }
+
+        function filterFood(city) {
+            document.querySelectorAll('.food-filter-btn').forEach(b => {
+                if(b.innerText.includes(city) || (city === 'all' && b.innerText === '全部')) b.classList.add('bg-stone-800', 'text-white'), b.classList.remove('bg-white', 'text-stone-600');
+                else b.classList.remove('bg-stone-800', 'text-white'), b.classList.add('bg-white', 'text-stone-600');
+            });
+            const c = document.getElementById('foodListContainer');
+            c.innerHTML = '';
+            (city === 'all' ? foodItems : foodItems.filter(f => f.city === city)).forEach(f => {
+                const d = document.createElement('div');
+                d.className = "p-4 hover:bg-stone-50 transition flex justify-between items-start group";
+                d.innerHTML = `<div><div class="flex items-center space-x-2"><span class="text-[10px] font-bold text-white bg-stone-400 px-1.5 py-0.5 rounded">${f.city}</span><h4 class="font-bold text-stone-800">${f.name}</h4></div><p class="text-xs text-stone-500 mt-1">${f.note}</p></div><span class="text-[10px] text-stone-400 border border-stone-200 px-2 py-1 rounded-full">${f.type}</span>`;
+                c.appendChild(d);
+            });
+        }
+
+        function scrollToSection(id) { document.getElementById(id).scrollIntoView({ behavior: 'smooth' }); }
+
+        window.onload = () => { initRouteMap(); renderDayTabs(); loadDay(0); filterFood('all'); initDrivingStressChart(); };
+    </script>
+</body>
+</html>
